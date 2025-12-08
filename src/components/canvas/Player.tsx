@@ -2,7 +2,7 @@
 // Player Component with Physics and Controls
 // ============================================
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { RigidBody, RapierRigidBody } from '@react-three/rapier';
 import { Vector3 } from 'three';
@@ -34,6 +34,10 @@ export const Player: React.FC<PlayerProps> = ({
 }) => {
     const rigidBodyRef = useRef<RapierRigidBody>(null);
     const { camera } = useThree();
+
+    // Aim angle for gun indicator (in world space)
+    const [aimAngle, setAimAngle] = useState(0);
+    const [isAiming, setIsAiming] = useState(false);
 
     const isPaused = useGameStore((state) => state.isPaused);
     const setPlayerPosition = useGameStore((state) => state.setPlayerPosition);
@@ -133,6 +137,19 @@ export const Player: React.FC<PlayerProps> = ({
         if (position.y < 1.1 && rigidBodyRef.current.linvel().y <= 0) {
             canJump.current = true;
         }
+
+        // Update aim angle from touch input or mouse
+        if (touchInput.shoot && (Math.abs(touchInput.aimX) > 0.1 || Math.abs(touchInput.aimY) > 0.1)) {
+            // Convert 2D aim to world angle
+            const aimDir = new Vector3()
+                .addScaledVector(rightDir, touchInput.aimX)
+                .addScaledVector(forwardDir, touchInput.aimY);
+            const angle = Math.atan2(aimDir.x, aimDir.z);
+            setAimAngle(angle);
+            setIsAiming(true);
+        } else {
+            setIsAiming(false);
+        }
     });
 
     return (
@@ -170,6 +187,33 @@ export const Player: React.FC<PlayerProps> = ({
                 <ringGeometry args={[size * 1.1, size * 1.3, 16]} />
                 <meshBasicMaterial color={weaponColor} transparent opacity={0.6} />
             </mesh>
+
+            {/* Gun/Weapon indicator stick */}
+            <group rotation={[0, aimAngle, 0]}>
+                {/* Gun barrel */}
+                <mesh position={[0, 0.1, -size * 1.5]} castShadow>
+                    <boxGeometry args={[0.12, 0.12, size * 1.8]} />
+                    <meshStandardMaterial
+                        color={isAiming ? weaponColor : '#666666'}
+                        emissive={isAiming ? weaponColor : '#333333'}
+                        emissiveIntensity={isAiming ? 0.5 : 0.1}
+                        metalness={0.8}
+                        roughness={0.2}
+                    />
+                </mesh>
+                {/* Muzzle glow when aiming */}
+                {isAiming && (
+                    <mesh position={[0, 0.1, -size * 2.3]}>
+                        <sphereGeometry args={[0.1, 8, 8]} />
+                        <meshBasicMaterial color={weaponColor} transparent opacity={0.8} />
+                    </mesh>
+                )}
+                {/* Gun handle */}
+                <mesh position={[0, -0.1, -size * 0.8]}>
+                    <boxGeometry args={[0.1, 0.25, 0.15]} />
+                    <meshStandardMaterial color="#444444" metalness={0.6} roughness={0.4} />
+                </mesh>
+            </group>
 
             {/* Weapon light */}
             <pointLight color={weaponColor} intensity={1.5} distance={3} position={[0, 0.3, 0]} />

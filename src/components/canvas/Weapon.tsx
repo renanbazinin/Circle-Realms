@@ -90,7 +90,7 @@ export const WeaponController: React.FC = () => {
     useFrame((_, delta) => {
         if (isPaused) return;
 
-        // Handle touch fire (mobile)
+        // Handle touch fire (mobile) - uses aim joystick direction
         if (touchInput.shoot) {
             const weapon = getEquippedWeapon();
             if (weapon) {
@@ -100,16 +100,18 @@ export const WeaponController: React.FC = () => {
                 if (now - lastFireTime.current >= fireInterval) {
                     lastFireTime.current = now;
 
-                    // Fire towards forward direction (or towards mouse if available)
                     const playerPos = new Vector3(...player.position);
-                    // Default fire direction (forward in isometric view)
-                    let direction = new Vector3(-1, 0, -1).normalize();
 
-                    // If mouse has moved, use mouse direction
-                    if (mousePosition.current.lengthSq() > 0) {
-                        direction = mousePosition.current.clone().sub(playerPos).normalize();
-                        direction.y = 0;
-                    }
+                    // Convert 2D joystick input to 3D world direction (isometric)
+                    // aimX: positive = right on screen, aimY: positive = up on screen
+                    // In isometric view: right = (+x, -z), up = (-x, -z)
+                    const forwardDir = new Vector3(-1, 0, -1).normalize();
+                    const rightDir = new Vector3(1, 0, -1).normalize();
+
+                    const direction = new Vector3()
+                        .addScaledVector(rightDir, touchInput.aimX)
+                        .addScaledVector(forwardDir, touchInput.aimY)
+                        .normalize();
 
                     const projectile: ProjectileData = {
                         id: `proj-${Date.now()}-${Math.random()}`,
