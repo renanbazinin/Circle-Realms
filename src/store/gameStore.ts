@@ -14,7 +14,7 @@ import type {
     ILootItem,
     IProjectile
 } from '../types';
-import { getStarterWeapon, getWeaponById } from '../data/weapons';
+import { getStarterWeapon } from '../data/weapons';
 
 // ============================================
 // State Interface

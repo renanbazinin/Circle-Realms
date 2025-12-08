@@ -2,12 +2,12 @@
 // Weapon Controller Component
 // ============================================
 
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Vector3, Raycaster, Plane } from 'three';
-import { RigidBody, RapierRigidBody, useRapier } from '@react-three/rapier';
+import { Vector3, Raycaster, Plane, Vector2 } from 'three';
+import { RapierRigidBody, useRapier } from '@react-three/rapier';
 import { useGameStore } from '../../store/gameStore';
-import type { IWeapon, IProjectile } from '../../types';
+import type { IWeapon } from '../../types';
 
 interface ProjectileData {
     id: string;
@@ -25,8 +25,6 @@ export const WeaponController: React.FC = () => {
     const player = useGameStore((state) => state.player);
     const getEquippedWeapon = useGameStore((state) => state.getEquippedWeapon);
     const isPaused = useGameStore((state) => state.isPaused);
-    const addXp = useGameStore((state) => state.addXp);
-    const addLoot = useGameStore((state) => state.addLoot);
 
     const projectiles = useRef<ProjectileData[]>([]);
     const lastFireTime = useRef(0);
@@ -41,7 +39,7 @@ export const WeaponController: React.FC = () => {
             const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
             const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-            raycaster.current.setFromCamera({ x, y }, camera);
+            raycaster.current.setFromCamera(new Vector2(x, y), camera);
             const target = new Vector3();
             raycaster.current.ray.intersectPlane(groundPlane.current, target);
             mousePosition.current.copy(target);
@@ -101,14 +99,6 @@ export const WeaponController: React.FC = () => {
             if (proj.distanceTraveled >= proj.weapon.range) {
                 return false; // Remove projectile
             }
-
-            // Raycast for collision detection
-            const ray = new Raycaster(
-                proj.position.clone(),
-                proj.direction.clone(),
-                0,
-                moveDistance + 0.5
-            );
 
             // Manual collision check with enemies via Rapier
             world.bodies.forEach((body) => {

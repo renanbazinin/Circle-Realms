@@ -8,7 +8,6 @@ export const GameOver: React.FC = () => {
     const player = useGameStore((state) => state.player);
     const resetPlayer = useGameStore((state) => state.resetPlayer);
     const setGameScreen = useGameStore((state) => state.setGameScreen);
-    const currentZone = useGameStore((state) => state.currentZone);
     const setCurrentZone = useGameStore((state) => state.setCurrentZone);
 
     const handleRespawn = () => {

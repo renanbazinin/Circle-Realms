@@ -2,7 +2,7 @@
 // HUD Component - In-game Overlay
 // ============================================
 
-import { useGameStore, usePlayer, useCurrentZone, useInventory } from '../../store/gameStore';
+import { useGameStore, usePlayer, useCurrentZone } from '../../store/gameStore';
 
 const ZONE_NAMES: Record<number, string> = {
     0: 'The Hub',
@@ -12,7 +12,6 @@ const ZONE_NAMES: Record<number, string> = {
 export const HUD: React.FC = () => {
     const player = usePlayer();
     const currentZone = useCurrentZone();
-    const inventory = useInventory();
     const getEquippedWeapon = useGameStore((state) => state.getEquippedWeapon);
     const togglePause = useGameStore((state) => state.togglePause);
 
