@@ -26,6 +26,10 @@ export const initAudio = (): void => {
     if (!audioContext) {
         audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
+    // Resume if suspended (browser policy)
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
 };
 
 // Update sound settings
@@ -38,8 +42,11 @@ export const getSoundSettings = (): SoundConfig => {
     return { ...soundConfig };
 };
 
+// Sound effect types
+export type SFXType = 'shoot' | 'hit' | 'pickup' | 'levelup' | 'damage' | 'death' | 'jump' | 'coin' | 'zonechange';
+
 // Play a simple synthesized sound effect
-export const playSFX = (type: 'shoot' | 'hit' | 'pickup' | 'levelup' | 'damage' | 'death' | 'jump'): void => {
+export const playSFX = (type: SFXType): void => {
     if (soundConfig.muted || soundConfig.sfxVolume === 0) return;
 
     initAudio();
@@ -83,12 +90,38 @@ export const playSFX = (type: 'shoot' | 'hit' | 'pickup' | 'levelup' | 'damage' 
             oscillator.stop(now + 0.2);
             break;
 
+        case 'coin':
+            // Bright, high-pitched coin sound
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(1200, now);
+            oscillator.frequency.exponentialRampToValueAtTime(1800, now + 0.05);
+            oscillator.frequency.exponentialRampToValueAtTime(1400, now + 0.1);
+            gainNode.gain.setValueAtTime(volume * 0.6, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+            oscillator.start(now);
+            oscillator.stop(now + 0.15);
+            break;
+
         case 'levelup':
             oscillator.frequency.setValueAtTime(400, now);
             oscillator.frequency.exponentialRampToValueAtTime(600, now + 0.1);
             oscillator.frequency.exponentialRampToValueAtTime(800, now + 0.2);
             oscillator.frequency.exponentialRampToValueAtTime(1000, now + 0.3);
+            oscillator.frequency.exponentialRampToValueAtTime(1200, now + 0.4);
             gainNode.gain.setValueAtTime(volume * 0.8, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+            oscillator.start(now);
+            oscillator.stop(now + 0.5);
+            break;
+
+        case 'zonechange':
+            // Whoosh/transition sound
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(200, now);
+            oscillator.frequency.exponentialRampToValueAtTime(600, now + 0.2);
+            oscillator.frequency.exponentialRampToValueAtTime(300, now + 0.4);
+            gainNode.gain.setValueAtTime(volume * 0.4, now);
+            gainNode.gain.exponentialRampToValueAtTime(volume * 0.6, now + 0.2);
             gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
             oscillator.start(now);
             oscillator.stop(now + 0.4);
@@ -191,9 +224,10 @@ class BackgroundMusic {
             this.gainNode.gain.value = soundConfig.volume * soundConfig.musicVolume * 0.15;
         }
     }
+
+    getIsPlaying(): boolean {
+        return this.isPlaying;
+    }
 }
 
 export const backgroundMusic = new BackgroundMusic();
-
-// Export sound types for use with playSFX
-export type SFXType = 'shoot' | 'hit' | 'pickup' | 'levelup' | 'damage' | 'death' | 'jump';

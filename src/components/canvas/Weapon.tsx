@@ -8,6 +8,7 @@ import { Vector3, Raycaster, Plane, Vector2 } from 'three';
 import { RapierRigidBody, useRapier } from '@react-three/rapier';
 import { useGameStore } from '../../store/gameStore';
 import type { IWeapon } from '../../types';
+import { touchInput } from '../ui/MobileControls';
 
 interface ProjectileData {
     id: string;
@@ -85,9 +86,44 @@ export const WeaponController: React.FC = () => {
         return () => window.removeEventListener('click', handleClick);
     }, [isPaused, player.position, getEquippedWeapon]);
 
-    // Update projectiles
+    // Update projectiles and handle touch fire
     useFrame((_, delta) => {
         if (isPaused) return;
+
+        // Handle touch fire (mobile)
+        if (touchInput.shoot) {
+            const weapon = getEquippedWeapon();
+            if (weapon) {
+                const now = Date.now();
+                const fireInterval = 1000 / weapon.fireRate;
+
+                if (now - lastFireTime.current >= fireInterval) {
+                    lastFireTime.current = now;
+
+                    // Fire towards forward direction (or towards mouse if available)
+                    const playerPos = new Vector3(...player.position);
+                    // Default fire direction (forward in isometric view)
+                    let direction = new Vector3(-1, 0, -1).normalize();
+
+                    // If mouse has moved, use mouse direction
+                    if (mousePosition.current.lengthSq() > 0) {
+                        direction = mousePosition.current.clone().sub(playerPos).normalize();
+                        direction.y = 0;
+                    }
+
+                    const projectile: ProjectileData = {
+                        id: `proj-${Date.now()}-${Math.random()}`,
+                        position: playerPos.clone().add(new Vector3(0, 0.5, 0)),
+                        direction: direction,
+                        weapon: weapon,
+                        distanceTraveled: 0,
+                        rigidBody: null,
+                    };
+
+                    projectiles.current.push(projectile);
+                }
+            }
+        }
 
         projectiles.current = projectiles.current.filter((proj) => {
             // Move projectile

@@ -61,6 +61,8 @@ const EnemyWithLabel: React.FC<EnemyWithLabelProps> = ({ id, preset, position, o
     const rigidBodyRef = useRef<RapierRigidBody>(null);
     const [health, setHealth] = useState(preset.maxHealth);
     const [isAlive, setIsAlive] = useState(true);
+    const [isDying, setIsDying] = useState(false);
+    const [deathScale, setDeathScale] = useState(1);
 
     const player = useGameStore((state) => state.player);
     const isPaused = useGameStore((state) => state.isPaused);
@@ -73,7 +75,7 @@ const EnemyWithLabel: React.FC<EnemyWithLabelProps> = ({ id, preset, position, o
         console.log(`[Enemy] Spawned: ${preset.name} (${id}) at position [${position.join(', ')}]`);
     }, []);
 
-    // AI behavior
+    // AI behavior - with zone restriction
     useFrame(() => {
         if (!rigidBodyRef.current || !isAlive || isPaused) return;
         if (preset.behavior === 'training') return;
@@ -91,15 +93,45 @@ const EnemyWithLabel: React.FC<EnemyWithLabelProps> = ({ id, preset, position, o
             return;
         }
 
+        // Zone boundary check - keep enemies in their zones
+        const enemyDistFromCenter = Math.sqrt(enemyPos.x * enemyPos.x + enemyPos.z * enemyPos.z);
+        const getZoneBounds = (zone: number) => {
+            if (zone === 0) return { min: 0, max: 14 };
+            if (zone === 1) return { min: 16, max: 29 };
+            if (zone === 2) return { min: 31, max: 53 };
+            return { min: 0, max: 100 };
+        };
+        const zoneBounds = getZoneBounds(position[2] < 15 && position[0] < 15 ? 0 : 1); // Determine zone from spawn
+
         const distance = enemyVec.distanceTo(playerPos);
 
         if (preset.behavior === 'hostile' && distance < 15 && distance > 1.5) {
+            // Calculate direction to player
             const direction = playerPos.clone().sub(enemyVec).normalize();
-            rigidBodyRef.current.setLinvel({
-                x: direction.x * preset.speed,
-                y: rigidBodyRef.current.linvel().y,
-                z: direction.z * preset.speed,
-            }, true);
+
+            // Check if moving would take us outside our zone
+            const nextPos = new Vector3(
+                enemyPos.x + direction.x * preset.speed * 0.016,
+                0,
+                enemyPos.z + direction.z * preset.speed * 0.016
+            );
+            const nextDistFromCenter = Math.sqrt(nextPos.x * nextPos.x + nextPos.z * nextPos.z);
+
+            // Only move if staying in zone
+            if (nextDistFromCenter >= zoneBounds.min && nextDistFromCenter <= zoneBounds.max) {
+                rigidBodyRef.current.setLinvel({
+                    x: direction.x * preset.speed,
+                    y: rigidBodyRef.current.linvel().y,
+                    z: direction.z * preset.speed,
+                }, true);
+            } else {
+                // Stop at zone boundary
+                rigidBodyRef.current.setLinvel({
+                    x: 0,
+                    y: rigidBodyRef.current.linvel().y,
+                    z: 0,
+                }, true);
+            }
         } else if (distance <= 1.5 && preset.behavior === 'hostile') {
             const now = Date.now();
             if (now - lastAttackTime.current > 1000) {
@@ -118,22 +150,33 @@ const EnemyWithLabel: React.FC<EnemyWithLabelProps> = ({ id, preset, position, o
     });
 
     const takeDamage = useCallback((amount: number) => {
-        if (!isAlive) return;
+        if (!isAlive || isDying) return;
         console.log(`[Enemy] ${preset.name} (${id}) took ${amount} damage`);
         setHealth((prev) => {
             const newHealth = Math.max(0, prev - amount);
             console.log(`[Enemy] ${preset.name} (${id}) health: ${newHealth}/${preset.maxHealth}`);
             if (newHealth <= 0) {
                 console.log(`[Enemy] ${preset.name} (${id}) died!`);
-                setIsAlive(false);
+                // Start death animation
+                setIsDying(true);
                 if (rigidBodyRef.current) {
                     const pos = rigidBodyRef.current.translation();
                     onDeath(id, [pos.x, pos.y, pos.z], preset.lootTable, preset.xpReward);
                 }
+                // Shrink animation over 500ms
+                let scale = 1;
+                const shrinkInterval = setInterval(() => {
+                    scale -= 0.1;
+                    setDeathScale(Math.max(0, scale));
+                    if (scale <= 0) {
+                        clearInterval(shrinkInterval);
+                        setIsAlive(false);
+                    }
+                }, 50);
             }
             return newHealth;
         });
-    }, [isAlive, id, onDeath, preset]);
+    }, [isAlive, isDying, id, onDeath, preset]);
 
     useEffect(() => {
         if (rigidBodyRef.current) {
@@ -142,6 +185,10 @@ const EnemyWithLabel: React.FC<EnemyWithLabelProps> = ({ id, preset, position, o
     }, [id, takeDamage]);
 
     if (!isAlive) return null;
+
+    // Death animation - shrink and fade
+    const currentSize = preset.size * deathScale;
+    const opacity = deathScale;
 
     const healthPercent = (health / preset.maxHealth) * 100;
     const healthColor = healthPercent > 50 ? '#22c55e' : healthPercent > 25 ? '#eab308' : '#ef4444';
@@ -162,15 +209,17 @@ const EnemyWithLabel: React.FC<EnemyWithLabelProps> = ({ id, preset, position, o
             {/* Explicit ball collider with correct size */}
             <BallCollider args={[preset.size]} restitution={0.2} friction={1} />
 
-            {/* Enemy body */}
-            <mesh castShadow>
+            {/* Enemy body - with death animation scale */}
+            <mesh castShadow scale={[deathScale, deathScale, deathScale]}>
                 <sphereGeometry args={[preset.size, 32, 32]} />
                 <meshStandardMaterial
-                    color={preset.color}
-                    emissive={preset.color}
-                    emissiveIntensity={0.3}
+                    color={isDying ? '#ff8888' : preset.color}
+                    emissive={isDying ? '#ff0000' : preset.color}
+                    emissiveIntensity={isDying ? 0.8 : 0.3}
                     roughness={0.4}
                     metalness={0.3}
+                    transparent={isDying}
+                    opacity={deathScale}
                 />
             </mesh>
 

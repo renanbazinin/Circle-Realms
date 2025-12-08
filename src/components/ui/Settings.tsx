@@ -71,8 +71,8 @@ export const Settings: React.FC = () => {
                         <button
                             onClick={handleMusicToggle}
                             className={`px-4 py-2 rounded-lg transition-colors ${musicEnabled
-                                    ? 'bg-green-600 hover:bg-green-500 text-white'
-                                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                                ? 'bg-green-600 hover:bg-green-500 text-white'
+                                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
                                 }`}
                         >
                             {musicEnabled ? 'ON' : 'OFF'}
@@ -122,6 +122,34 @@ export const Settings: React.FC = () => {
                             >
                                 Test
                             </button>
+                        </div>
+                    </div>
+
+                    {/* Mobile Controls Toggle */}
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <label className="text-gray-300">Touch Controls</label>
+                            <p className="text-xs text-gray-500">Virtual joystick for mobile</p>
+                        </div>
+                        <div className="flex gap-1">
+                            {(['auto', 'on', 'off'] as const).map((option) => {
+                                const current = localStorage.getItem('mobileControlsMode') || 'auto';
+                                return (
+                                    <button
+                                        key={option}
+                                        onClick={() => {
+                                            localStorage.setItem('mobileControlsMode', option);
+                                            window.dispatchEvent(new Event('mobileControlsChanged'));
+                                        }}
+                                        className={`px-3 py-1 rounded text-sm transition-colors ${current === option
+                                                ? 'bg-purple-600 text-white'
+                                                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                                            }`}
+                                    >
+                                        {option.charAt(0).toUpperCase() + option.slice(1)}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 

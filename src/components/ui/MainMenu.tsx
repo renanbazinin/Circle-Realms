@@ -3,7 +3,7 @@
 // ============================================
 
 import { useGameStore } from '../../store/gameStore';
-import { initAudio } from '../../utils/sounds';
+import { initAudio, backgroundMusic } from '../../utils/sounds';
 
 export const MainMenu: React.FC = () => {
     const startGame = useGameStore((state) => state.startGame);
@@ -14,11 +14,13 @@ export const MainMenu: React.FC = () => {
 
     const handleStartGame = () => {
         initAudio(); // Initialize audio on user click
+        backgroundMusic.start(); // Start background music
         startGame();
     };
 
     const handleNewGame = () => {
         initAudio();
+        backgroundMusic.start();
         useGameStore.getState().resetGame();
         startGame();
     };

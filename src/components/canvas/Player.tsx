@@ -8,6 +8,7 @@ import { RigidBody, RapierRigidBody } from '@react-three/rapier';
 import { Vector3 } from 'three';
 import { useGameStore } from '../../store/gameStore';
 import { playSFX } from '../../utils/sounds';
+import { touchInput } from '../ui/MobileControls';
 
 // Input state tracking
 const keys: Record<string, boolean> = {};
@@ -37,74 +38,70 @@ export const Player: React.FC<PlayerProps> = ({
     const isPaused = useGameStore((state) => state.isPaused);
     const setPlayerPosition = useGameStore((state) => state.setPlayerPosition);
     const setCurrentZone = useGameStore((state) => state.setCurrentZone);
+    const getEquippedWeapon = useGameStore((state) => state.getEquippedWeapon);
 
     const moveSpeed = 8;
     const jumpForce = 6;
     const canJump = useRef(true);
 
-    // Camera-relative directions (calculated once based on isometric view)
-    // Camera is at +X, +Y, +Z looking at origin, so:
-    // "Forward" (W) should move toward -X and -Z (away from camera)
-    // "Right" (D) should move toward +X and -Z (perpendicular)
+    // Camera-relative directions
     const forwardDir = new Vector3(-1, 0, -1).normalize();
     const rightDir = new Vector3(1, 0, -1).normalize();
 
-    // Zone boundaries (concentric rings)
+    // Zone boundaries
     const ZONE_BOUNDARIES = [
-        { zone: 0, innerRadius: 0, outerRadius: 15 },   // Zone 0: The Hub
-        { zone: 1, innerRadius: 15, outerRadius: 30 },  // Zone 1: The Wilds
-        { zone: 2, innerRadius: 30, outerRadius: 55 },  // Zone 2: The Sky Gardens
+        { zone: 0, innerRadius: 0, outerRadius: 15 },
+        { zone: 1, innerRadius: 15, outerRadius: 30 },
+        { zone: 2, innerRadius: 30, outerRadius: 55 },
     ];
 
-    // Update player position in store and camera follow
+    // Get weapon color for glow effect
+    const equippedWeapon = getEquippedWeapon();
+    const weaponColor = equippedWeapon?.color || '#66ff66';
+
     useFrame(() => {
         if (!rigidBodyRef.current || isPaused) return;
 
         const position = rigidBodyRef.current.translation();
 
-        // Update store position (for UI display)
         setPlayerPosition([position.x, position.y, position.z]);
 
-        // Camera follow - fixed isometric-style view
-        camera.position.set(
-            position.x + 10,
-            position.y + 12,
-            position.z + 10
-        );
+        // Camera follow
+        camera.position.set(position.x + 10, position.y + 12, position.z + 10);
         camera.lookAt(position.x, position.y, position.z);
 
-        // Check which zone player is in based on distance from center
+        // Zone check
         const distanceFromCenter = Math.sqrt(position.x * position.x + position.z * position.z);
         for (const boundary of ZONE_BOUNDARIES) {
             if (distanceFromCenter >= boundary.innerRadius && distanceFromCenter < boundary.outerRadius) {
                 const currentZone = useGameStore.getState().currentZone;
                 if (currentZone !== boundary.zone) {
+                    playSFX('zonechange');
                     setCurrentZone(boundary.zone as 0 | 1 | 2);
                 }
                 break;
             }
         }
 
-        // Camera-relative movement input
+        // Movement - combine keyboard and touch input
         const moveDir = new Vector3(0, 0, 0);
 
-        if (keys['KeyW'] || keys['ArrowUp']) {
-            moveDir.add(forwardDir);
-        }
-        if (keys['KeyS'] || keys['ArrowDown']) {
-            moveDir.sub(forwardDir);
-        }
-        if (keys['KeyA'] || keys['ArrowLeft']) {
-            moveDir.sub(rightDir);
-        }
-        if (keys['KeyD'] || keys['ArrowRight']) {
-            moveDir.add(rightDir);
+        // Keyboard input
+        if (keys['KeyW'] || keys['ArrowUp']) moveDir.add(forwardDir);
+        if (keys['KeyS'] || keys['ArrowDown']) moveDir.sub(forwardDir);
+        if (keys['KeyA'] || keys['ArrowLeft']) moveDir.sub(rightDir);
+        if (keys['KeyD'] || keys['ArrowRight']) moveDir.add(rightDir);
+
+        // Touch joystick input (adds to movement direction)
+        if (Math.abs(touchInput.moveX) > 0.1 || Math.abs(touchInput.moveY) > 0.1) {
+            // Forward/backward from joystick Y
+            moveDir.add(forwardDir.clone().multiplyScalar(touchInput.moveY));
+            // Left/right from joystick X
+            moveDir.add(rightDir.clone().multiplyScalar(touchInput.moveX));
         }
 
-        // Normalize and apply movement
         if (moveDir.length() > 0) {
             moveDir.normalize();
-
             const currentVel = rigidBodyRef.current.linvel();
             rigidBodyRef.current.setLinvel({
                 x: moveDir.x * moveSpeed,
@@ -112,7 +109,6 @@ export const Player: React.FC<PlayerProps> = ({
                 z: moveDir.z * moveSpeed,
             }, true);
         } else {
-            // Apply friction when not moving
             const currentVel = rigidBodyRef.current.linvel();
             rigidBodyRef.current.setLinvel({
                 x: currentVel.x * 0.9,
@@ -121,8 +117,8 @@ export const Player: React.FC<PlayerProps> = ({
             }, true);
         }
 
-        // Jump
-        if ((keys['Space']) && canJump.current) {
+        // Jump - keyboard or touch
+        if ((keys['Space'] || touchInput.jump) && canJump.current) {
             playSFX('jump');
             const currentVel = rigidBodyRef.current.linvel();
             rigidBodyRef.current.setLinvel({
@@ -133,7 +129,7 @@ export const Player: React.FC<PlayerProps> = ({
             canJump.current = false;
         }
 
-        // Reset jump when grounded (simple check)
+        // Reset jump when grounded
         if (position.y < 1.1 && rigidBodyRef.current.linvel().y <= 0) {
             canJump.current = true;
         }
@@ -151,7 +147,7 @@ export const Player: React.FC<PlayerProps> = ({
             lockRotations
             userData={{ type: 'player' }}
         >
-            {/* Player body - Sphere */}
+            {/* Player body */}
             <mesh castShadow>
                 <sphereGeometry args={[size, 32, 32]} />
                 <meshStandardMaterial
@@ -163,15 +159,20 @@ export const Player: React.FC<PlayerProps> = ({
                 />
             </mesh>
 
-            {/* Inner glow effect */}
+            {/* Inner glow */}
             <mesh>
                 <sphereGeometry args={[size * 0.9, 16, 16]} />
-                <meshBasicMaterial
-                    color={color}
-                    transparent
-                    opacity={0.3}
-                />
+                <meshBasicMaterial color={color} transparent opacity={0.3} />
             </mesh>
+
+            {/* Weapon glow ring */}
+            <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0.1, 0]}>
+                <ringGeometry args={[size * 1.1, size * 1.3, 16]} />
+                <meshBasicMaterial color={weaponColor} transparent opacity={0.6} />
+            </mesh>
+
+            {/* Weapon light */}
+            <pointLight color={weaponColor} intensity={1.5} distance={3} position={[0, 0.3, 0]} />
         </RigidBody>
     );
 };

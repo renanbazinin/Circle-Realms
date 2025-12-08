@@ -19,13 +19,14 @@ const ZoneLoadingFallback = () => (
     </mesh>
 );
 
-// Get lighting and fog based on zone
+// Get lighting and fog based on zone - smooth transitions
 const getZoneLighting = (zone: number) => {
     switch (zone) {
         case 0:
             return { ambient: 0.6, ambientColor: '#ffffee', fog: '#87ceeb' };
         case 1:
-            return { ambient: 0.3, ambientColor: '#ff6666', fog: '#1a0a0a' };
+            // Warm amber/brown tones instead of harsh red
+            return { ambient: 0.4, ambientColor: '#ffcc88', fog: '#1a1510' };
         case 2:
             return { ambient: 0.5, ambientColor: '#aaddff', fog: '#0a0a2a' };
         default:
@@ -56,7 +57,7 @@ export const LevelManager: React.FC = () => {
             <directionalLight
                 position={[10, 20, 10]}
                 intensity={currentZone === 0 ? 1.2 : currentZone === 2 ? 1 : 0.8}
-                color={currentZone === 0 ? '#ffffff' : currentZone === 2 ? '#aaccff' : '#ff9999'}
+                color={currentZone === 0 ? '#ffffff' : currentZone === 2 ? '#aaccff' : '#ffcc99'}
                 castShadow
                 shadow-mapSize={[1024, 1024]}
                 shadow-camera-near={0.5}
@@ -73,8 +74,8 @@ export const LevelManager: React.FC = () => {
             {/* Zone atmospheric lights - only render when in that zone */}
             {currentZone === 1 && (
                 <>
-                    <pointLight position={[-20, 5, -20]} color="#ff4444" intensity={2} distance={25} />
-                    <pointLight position={[20, 5, 20]} color="#ff6666" intensity={2} distance={25} />
+                    <pointLight position={[-20, 5, -20]} color="#ff9944" intensity={1.5} distance={25} />
+                    <pointLight position={[20, 5, 20]} color="#ffaa55" intensity={1.5} distance={25} />
                 </>
             )}
 

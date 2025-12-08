@@ -16,6 +16,7 @@ import { PauseMenu } from './components/ui/PauseMenu';
 import { GameOver } from './components/ui/GameOver';
 import { DialogBox } from './components/ui/DialogBox';
 import { ShopUI } from './components/ui/ShopUI';
+import { MobileControls } from './components/ui/MobileControls';
 
 import './index.css';
 
@@ -95,6 +96,7 @@ function App() {
       {gameScreen === 'menu' && <MainMenu />}
       {gameScreen === 'settings' && <Settings />}
       {gameScreen === 'playing' && <HUD />}
+      {gameScreen === 'playing' && <MobileControls />}
       {gameScreen === 'playing' && dialog.isOpen && <DialogBox />}
       {gameScreen === 'playing' && isShopOpen && <ShopUI onClose={closeShop} />}
       {gameScreen === 'paused' && <PauseMenu />}

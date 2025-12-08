@@ -39,26 +39,30 @@ export const DialogBox: React.FC = () => {
     const isLastLine = dialog.currentLineIndex >= dialog.lines.length - 1;
 
     return (
-        <div className="fixed inset-x-0 bottom-24 flex justify-center z-50 pointer-events-none">
-            <div className="bg-gray-900/95 backdrop-blur-xl rounded-2xl p-6 mx-4 max-w-2xl w-full
+        <div className="fixed inset-x-0 bottom-28 flex justify-center z-50 pointer-events-none px-4">
+            <div className="relative bg-gray-900/95 backdrop-blur-xl rounded-2xl max-w-2xl w-full
                       border border-white/20 shadow-2xl pointer-events-auto">
-                {/* NPC Name */}
-                <div className="absolute -top-3 left-6 px-4 py-1 bg-purple-600 rounded-full">
-                    <span className="text-sm font-bold text-white">{dialog.npcName}</span>
+                {/* NPC Name - positioned above the box */}
+                <div className="absolute -top-5 left-6 px-5 py-2 bg-gradient-to-r from-purple-600 to-purple-500 
+                              rounded-lg shadow-lg border border-purple-400/30">
+                    <span className="text-base font-bold text-white drop-shadow">{dialog.npcName}</span>
                 </div>
 
-                {/* Dialog text */}
-                <p className="text-lg text-white leading-relaxed mt-2">
-                    {currentLine}
-                </p>
+                {/* Dialog content with proper spacing */}
+                <div className="pt-10 pb-6 px-6">
+                    {/* Dialog text */}
+                    <p className="text-xl text-white leading-relaxed min-h-[60px]">
+                        {currentLine}
+                    </p>
 
-                {/* Progress indicator and continue prompt */}
-                <div className="flex justify-between items-center mt-4 pt-3 border-t border-white/10">
-                    <div className="text-sm text-gray-500">
-                        {dialog.currentLineIndex + 1} / {dialog.lines.length}
-                    </div>
-                    <div className="text-sm text-purple-400 animate-pulse">
-                        {isLastLine ? 'Click or press Space to close' : 'Click or press Space to continue →'}
+                    {/* Progress indicator and continue prompt */}
+                    <div className="flex justify-between items-center mt-6 pt-4 border-t border-white/10">
+                        <div className="text-sm text-gray-500">
+                            {dialog.currentLineIndex + 1} / {dialog.lines.length}
+                        </div>
+                        <div className="text-sm text-purple-400 animate-pulse">
+                            {isLastLine ? 'Click or press Space to close' : 'Click or press Space to continue →'}
+                        </div>
                     </div>
                 </div>
             </div>

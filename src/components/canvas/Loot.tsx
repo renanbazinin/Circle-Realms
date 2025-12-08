@@ -8,6 +8,7 @@ import { RigidBody, CuboidCollider } from '@react-three/rapier';
 import { Mesh } from 'three';
 import { useGameStore } from '../../store/gameStore';
 import type { ILootItem, IWeapon } from '../../types';
+import { playSFX } from '../../utils/sounds';
 
 interface LootProps {
     loot: ILootItem;
@@ -59,15 +60,19 @@ export const Loot: React.FC<LootProps> = ({ loot }) => {
         switch (loot.type) {
             case 'health':
                 healPlayer(loot.value as number);
+                playSFX('pickup');
                 break;
             case 'xp':
                 addXp(loot.value as number);
+                playSFX('pickup');
                 break;
             case 'weapon':
                 addWeapon(loot.value as IWeapon);
+                playSFX('pickup');
                 break;
             case 'coin':
                 addCoins(loot.value as number);
+                playSFX('coin');
                 break;
         }
 
