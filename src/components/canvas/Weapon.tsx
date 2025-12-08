@@ -69,6 +69,11 @@ export const WeaponController: React.FC = () => {
             const direction = mousePosition.current.clone().sub(playerPos).normalize();
             direction.y = 0; // Keep projectiles horizontal
 
+            // Update touchInput.aimAngle for gun indicator (PC support)
+            touchInput.aimAngle = Math.atan2(direction.x, direction.z);
+            touchInput.aimX = direction.x;
+            touchInput.aimY = direction.z;
+
             // Create projectile
             const projectile: ProjectileData = {
                 id: `proj-${Date.now()}-${Math.random()}`,

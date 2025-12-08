@@ -138,17 +138,10 @@ export const Player: React.FC<PlayerProps> = ({
             canJump.current = true;
         }
 
-        // Update aim angle from touch input or mouse
-        if (touchInput.shoot && (Math.abs(touchInput.aimX) > 0.1 || Math.abs(touchInput.aimY) > 0.1)) {
-            // Convert 2D aim to world angle
-            const aimDir = new Vector3()
-                .addScaledVector(rightDir, touchInput.aimX)
-                .addScaledVector(forwardDir, touchInput.aimY);
-            const angle = Math.atan2(aimDir.x, aimDir.z);
-            setAimAngle(angle);
-            setIsAiming(true);
-        } else {
-            setIsAiming(false);
+        // Update aim angle from touchInput (set by both mouse click and touch joystick)
+        if (Math.abs(touchInput.aimX) > 0.01 || Math.abs(touchInput.aimY) > 0.01) {
+            setAimAngle(touchInput.aimAngle);
+            setIsAiming(touchInput.shoot || Math.abs(touchInput.aimX) > 0.1 || Math.abs(touchInput.aimY) > 0.1);
         }
     });
 
@@ -189,7 +182,7 @@ export const Player: React.FC<PlayerProps> = ({
             </mesh>
 
             {/* Gun/Weapon indicator stick */}
-            <group rotation={[0, aimAngle, 0]}>
+            <group rotation={[0, aimAngle + Math.PI, 0]}>
                 {/* Gun barrel */}
                 <mesh position={[0, 0.1, -size * 1.5]} castShadow>
                     <boxGeometry args={[0.12, 0.12, size * 1.8]} />
