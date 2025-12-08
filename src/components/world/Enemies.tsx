@@ -94,7 +94,6 @@ const EnemyWithLabel: React.FC<EnemyWithLabelProps> = ({ id, preset, position, o
         }
 
         // Zone boundary check - keep enemies in their zones
-        const enemyDistFromCenter = Math.sqrt(enemyPos.x * enemyPos.x + enemyPos.z * enemyPos.z);
         const getZoneBounds = (zone: number) => {
             if (zone === 0) return { min: 0, max: 14 };
             if (zone === 1) return { min: 16, max: 29 };
@@ -186,10 +185,7 @@ const EnemyWithLabel: React.FC<EnemyWithLabelProps> = ({ id, preset, position, o
 
     if (!isAlive) return null;
 
-    // Death animation - shrink and fade
-    const currentSize = preset.size * deathScale;
-    const opacity = deathScale;
-
+    // Death animation uses deathScale directly in render
     const healthPercent = (health / preset.maxHealth) * 100;
     const healthColor = healthPercent > 50 ? '#22c55e' : healthPercent > 25 ? '#eab308' : '#ef4444';
 
