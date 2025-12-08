@@ -3,6 +3,7 @@
 // ============================================
 
 import { useGameStore } from '../../store/gameStore';
+import { initAudio } from '../../utils/sounds';
 
 export const MainMenu: React.FC = () => {
     const startGame = useGameStore((state) => state.startGame);
@@ -10,6 +11,17 @@ export const MainMenu: React.FC = () => {
     const player = useGameStore((state) => state.player);
 
     const hasSaveData = player.xp > 0 || player.level > 1;
+
+    const handleStartGame = () => {
+        initAudio(); // Initialize audio on user click
+        startGame();
+    };
+
+    const handleNewGame = () => {
+        initAudio();
+        useGameStore.getState().resetGame();
+        startGame();
+    };
 
     return (
         <div className="fixed inset-0 menu-backdrop flex items-center justify-center z-50">
@@ -54,7 +66,7 @@ export const MainMenu: React.FC = () => {
                 {/* Menu buttons */}
                 <div className="flex flex-col gap-4 items-center">
                     <button
-                        onClick={startGame}
+                        onClick={handleStartGame}
                         className="game-btn glow-purple min-w-[250px]"
                     >
                         {hasSaveData ? 'Continue' : 'Start Game'}
@@ -62,10 +74,7 @@ export const MainMenu: React.FC = () => {
 
                     {hasSaveData && (
                         <button
-                            onClick={() => {
-                                useGameStore.getState().resetGame();
-                                startGame();
-                            }}
+                            onClick={handleNewGame}
                             className="game-btn-secondary min-w-[250px]"
                         >
                             New Game

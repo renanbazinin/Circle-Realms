@@ -7,6 +7,7 @@ import { useGameStore, usePlayer, useCurrentZone } from '../../store/gameStore';
 const ZONE_NAMES: Record<number, string> = {
     0: 'The Hub',
     1: 'The Wilds',
+    2: 'The Sky Gardens',
 };
 
 export const HUD: React.FC = () => {

@@ -7,6 +7,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { RigidBody, RapierRigidBody } from '@react-three/rapier';
 import { Vector3 } from 'three';
 import { useGameStore } from '../../store/gameStore';
+import { playSFX } from '../../utils/sounds';
 
 // Input state tracking
 const keys: Record<string, boolean> = {};
@@ -50,8 +51,9 @@ export const Player: React.FC<PlayerProps> = ({
 
     // Zone boundaries (concentric rings)
     const ZONE_BOUNDARIES = [
-        { zone: 0, innerRadius: 0, outerRadius: 15 },   // Zone 0: center
-        { zone: 1, innerRadius: 15, outerRadius: 30 },  // Zone 1: outer ring
+        { zone: 0, innerRadius: 0, outerRadius: 15 },   // Zone 0: The Hub
+        { zone: 1, innerRadius: 15, outerRadius: 30 },  // Zone 1: The Wilds
+        { zone: 2, innerRadius: 30, outerRadius: 55 },  // Zone 2: The Sky Gardens
     ];
 
     // Update player position in store and camera follow
@@ -77,7 +79,7 @@ export const Player: React.FC<PlayerProps> = ({
             if (distanceFromCenter >= boundary.innerRadius && distanceFromCenter < boundary.outerRadius) {
                 const currentZone = useGameStore.getState().currentZone;
                 if (currentZone !== boundary.zone) {
-                    setCurrentZone(boundary.zone as 0 | 1);
+                    setCurrentZone(boundary.zone as 0 | 1 | 2);
                 }
                 break;
             }
@@ -121,6 +123,7 @@ export const Player: React.FC<PlayerProps> = ({
 
         // Jump
         if ((keys['Space']) && canJump.current) {
+            playSFX('jump');
             const currentVel = rigidBodyRef.current.linvel();
             rigidBodyRef.current.setLinvel({
                 x: currentVel.x,

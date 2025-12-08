@@ -39,7 +39,7 @@ export const getSoundSettings = (): SoundConfig => {
 };
 
 // Play a simple synthesized sound effect
-export const playSFX = (type: 'shoot' | 'hit' | 'pickup' | 'levelup' | 'damage' | 'death'): void => {
+export const playSFX = (type: 'shoot' | 'hit' | 'pickup' | 'levelup' | 'damage' | 'death' | 'jump'): void => {
     if (soundConfig.muted || soundConfig.sfxVolume === 0) return;
 
     initAudio();
@@ -112,6 +112,15 @@ export const playSFX = (type: 'shoot' | 'hit' | 'pickup' | 'levelup' | 'damage' 
             gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
             oscillator.start(now);
             oscillator.stop(now + 0.5);
+            break;
+
+        case 'jump':
+            oscillator.frequency.setValueAtTime(200, now);
+            oscillator.frequency.exponentialRampToValueAtTime(500, now + 0.15);
+            gainNode.gain.setValueAtTime(volume * 0.5, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+            oscillator.start(now);
+            oscillator.stop(now + 0.15);
             break;
     }
 };
@@ -187,4 +196,4 @@ class BackgroundMusic {
 export const backgroundMusic = new BackgroundMusic();
 
 // Export sound types for use with playSFX
-export type SFXType = 'shoot' | 'hit' | 'pickup' | 'levelup' | 'damage' | 'death';
+export type SFXType = 'shoot' | 'hit' | 'pickup' | 'levelup' | 'damage' | 'death' | 'jump';
