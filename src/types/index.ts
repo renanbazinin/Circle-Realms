@@ -15,19 +15,21 @@ export interface IWeapon {
 }
 
 // Enemy Types
-export type EnemyBehavior = 'passive' | 'hostile' | 'training';
+export type EnemyBehavior = 'passive' | 'hostile' | 'training' | 'turret';
 
 export interface IEnemy {
     id: string;
     name: string;
-    type: 'small' | 'big';
+    type: 'small' | 'big' | 'turret';
     health: number;
     maxHealth: number;
-    size: number;          // radius for sphere
+    size: number;          // radius for sphere or half-size for box
     color: string;
     speed: number;
     damage: number;
     behavior: EnemyBehavior;
+    fireRate?: number;     // shots per second (for turrets)
+    detectionRadius?: number; // detection range (for turrets)
     lootTable: ILootDrop[];
     xpReward: number;
 }

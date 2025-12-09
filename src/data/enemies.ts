@@ -25,7 +25,7 @@ export const ENEMY_PRESETS: Record<string, Omit<IEnemy, 'id'>> = {
         maxHealth: 30,
         size: 0.5,
         color: '#ef4444',
-        speed: 3,
+        speed: 5,
         damage: 5,
         behavior: 'hostile',
         lootTable: [
@@ -56,7 +56,7 @@ export const ENEMY_PRESETS: Record<string, Omit<IEnemy, 'id'>> = {
         maxHealth: 150,
         size: 1.2,
         color: '#dc2626',
-        speed: 1.5,
+        speed: 2.5,
         damage: 20,
         behavior: 'hostile',
         lootTable: [
@@ -65,6 +65,24 @@ export const ENEMY_PRESETS: Record<string, Omit<IEnemy, 'id'>> = {
             { type: 'health', chance: 0.5, value: 50 },
         ],
         xpReward: 50,
+    },
+    'turret': {
+        name: 'Defense Turret',
+        type: 'turret',
+        health: 80,
+        maxHealth: 80,
+        size: 0.6,
+        color: '#8b5cf6',
+        speed: 0,           // stationary
+        damage: 8,
+        behavior: 'turret',
+        fireRate: 0.5,      // shoots every 2 seconds
+        detectionRadius: 12,
+        lootTable: [
+            { type: 'xp', chance: 1, value: 25 },
+            { type: 'health', chance: 0.4, value: 30 },
+        ],
+        xpReward: 30,
     },
 };
 

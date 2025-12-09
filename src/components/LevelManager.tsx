@@ -176,18 +176,17 @@ export const LevelManager: React.FC = () => {
                 </group>
             ))}
 
-            {/* ============================================ */}
             {/* ZONE 2 - THE SKY GARDENS (Parkour Zone) */}
             {/* Only render when in Zone 2 for performance */}
             {/* ============================================ */}
             {currentZone === 2 && (
                 <>
-                    {/* Floating Platform Ring - Inner (radius ~34) - LOWER & CLOSER */}
-                    {Array.from({ length: 10 }).map((_, i) => {
-                        const angle = (i / 10) * Math.PI * 2;
+                    {/* Floating Platform Ring - Inner (radius ~34) - REDUCED */}
+                    {Array.from({ length: 5 }).map((_, i) => {
+                        const angle = (i / 5) * Math.PI * 2;
                         const x = Math.cos(angle) * 34;
                         const z = Math.sin(angle) * 34;
-                        const height = 0.3 + (i % 3) * 0.3; // Height: 0.3, 0.6, or 0.9
+                        const height = 0.3 + (i % 3) * 0.3;
                         return (
                             <RigidBody key={`platform-inner-${i}`} type="fixed" colliders="cuboid">
                                 <mesh position={[x, height, z]} castShadow receiveShadow>
@@ -202,12 +201,12 @@ export const LevelManager: React.FC = () => {
                         );
                     })}
 
-                    {/* Floating Platform Ring - Middle (radius ~42) - EASY JUMPS */}
-                    {Array.from({ length: 12 }).map((_, i) => {
-                        const angle = (i / 12) * Math.PI * 2 + 0.15;
+                    {/* Floating Platform Ring - Middle (radius ~42) - REDUCED */}
+                    {Array.from({ length: 6 }).map((_, i) => {
+                        const angle = (i / 6) * Math.PI * 2 + 0.15;
                         const x = Math.cos(angle) * 42;
                         const z = Math.sin(angle) * 42;
-                        const height = 0.5 + (i % 4) * 0.4; // Height: 0.5 to 1.7
+                        const height = 0.5 + (i % 4) * 0.4;
                         return (
                             <RigidBody key={`platform-mid-${i}`} type="fixed" colliders="cuboid">
                                 <mesh position={[x, height, z]} castShadow receiveShadow>
@@ -222,12 +221,12 @@ export const LevelManager: React.FC = () => {
                         );
                     })}
 
-                    {/* Floating Platform Ring - Outer (radius ~50) */}
-                    {Array.from({ length: 14 }).map((_, i) => {
-                        const angle = (i / 14) * Math.PI * 2 + 0.3;
+                    {/* Floating Platform Ring - Outer (radius ~50) - REDUCED */}
+                    {Array.from({ length: 7 }).map((_, i) => {
+                        const angle = (i / 7) * Math.PI * 2 + 0.3;
                         const x = Math.cos(angle) * 50;
                         const z = Math.sin(angle) * 50;
-                        const height = 0.8 + (i % 3) * 0.5; // Height: 0.8 to 1.8
+                        const height = 0.8 + (i % 3) * 0.5;
                         return (
                             <RigidBody key={`platform-outer-${i}`} type="fixed" colliders="cuboid">
                                 <mesh position={[x, height, z]} castShadow receiveShadow>
@@ -242,32 +241,8 @@ export const LevelManager: React.FC = () => {
                         );
                     })}
 
-                    {/* Stepping stone paths between platform rings */}
-                    {Array.from({ length: 8 }).map((_, i) => {
-                        const angle = (i / 8) * Math.PI * 2;
-                        // Path from inner to middle ring
-                        const x1 = Math.cos(angle) * 38;
-                        const z1 = Math.sin(angle) * 38;
-                        // Path from middle to outer ring
-                        const x2 = Math.cos(angle) * 46;
-                        const z2 = Math.sin(angle) * 46;
-                        return (
-                            <group key={`stepping-${i}`}>
-                                <RigidBody type="fixed" colliders="cuboid">
-                                    <mesh position={[x1, 0.4, z1]} castShadow>
-                                        <boxGeometry args={[2, 0.3, 2]} />
-                                        <meshStandardMaterial color="#06b6d4" emissive="#06b6d4" emissiveIntensity={0.4} />
-                                    </mesh>
-                                </RigidBody>
-                                <RigidBody type="fixed" colliders="cuboid">
-                                    <mesh position={[x2, 0.6, z2]} castShadow>
-                                        <boxGeometry args={[2, 0.3, 2]} />
-                                        <meshStandardMaterial color="#14b8a6" emissive="#14b8a6" emissiveIntensity={0.4} />
-                                    </mesh>
-                                </RigidBody>
-                            </group>
-                        );
-                    })}
+                    {/* Stepping stones REMOVED - turrets now occupy this space */}
+
 
                     {/* Crystal Pillar Towers - shorter and easier to climb */}
                     {Array.from({ length: 4 }).map((_, i) => {

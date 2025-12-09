@@ -4,7 +4,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { RigidBody, RapierRigidBody, BallCollider } from '@react-three/rapier';
+import { RigidBody, RapierRigidBody, BallCollider, CuboidCollider } from '@react-three/rapier';
 import { Text } from '@react-three/drei';
 import { Vector3 } from 'three';
 import { useGameStore } from '../../store/gameStore';
@@ -21,14 +21,25 @@ interface EnemySpawn {
     isAlive: boolean;
 }
 
+// Turret projectile interface
+interface TurretProjectile {
+    id: string;
+    position: Vector3;
+    direction: Vector3;
+    damage: number;
+    speed: number;
+}
+
 // Spawn enemies HIGH above ground - let gravity bring them down
 const getEnemyY = (presetId: string): number => {
     // Spawn at Y=3 for all enemies - they will drop onto ground
+    // Turrets spawn slightly lower since they're stationary
+    if (presetId === 'turret') return 1;
     console.log(`[Enemy] getEnemyY for ${presetId}: spawning at Y=3`);
     return 3;
 };
 
-// Initial enemy placements - Zone 0 has practice enemies, Zone 1 has hostile enemies
+// Initial enemy placements - Zone 0 has practice enemies, Zone 1 has hostile enemies, Zone 2 has turrets
 const initialEnemies: EnemySpawn[] = [
     // Zone 0 - Practice area (inner ring)
     { id: 'training-1', presetId: 'training-dummy', position: [-8, getEnemyY('training-dummy'), -3], zone: 0, isAlive: true },
@@ -41,6 +52,14 @@ const initialEnemies: EnemySpawn[] = [
     { id: 'slime-3', presetId: 'small-slime', position: [22, getEnemyY('small-slime'), -12], zone: 1, isAlive: true },
     { id: 'slime-4', presetId: 'small-slime', position: [-20, getEnemyY('small-slime'), -18], zone: 1, isAlive: true },
     { id: 'golem-1', presetId: 'big-golem', position: [0, getEnemyY('big-golem'), 22], zone: 1, isAlive: true },
+
+    // Zone 2 - Turret area (sky gardens)
+    { id: 'turret-1', presetId: 'turret', position: [38, getEnemyY('turret'), 0], zone: 2, isAlive: true },
+    { id: 'turret-2', presetId: 'turret', position: [-38, getEnemyY('turret'), 0], zone: 2, isAlive: true },
+    { id: 'turret-3', presetId: 'turret', position: [0, getEnemyY('turret'), 38], zone: 2, isAlive: true },
+    { id: 'turret-4', presetId: 'turret', position: [0, getEnemyY('turret'), -38], zone: 2, isAlive: true },
+    { id: 'turret-5', presetId: 'turret', position: [35, getEnemyY('turret'), 35], zone: 2, isAlive: true },
+    { id: 'turret-6', presetId: 'turret', position: [-35, getEnemyY('turret'), -35], zone: 2, isAlive: true },
 ];
 
 // Spawn points for Zone 1 respawning - use dynamic Y based on preset
@@ -55,20 +74,23 @@ interface EnemyWithLabelProps {
     preset: Omit<IEnemy, 'id'>;
     position: [number, number, number];
     onDeath: (id: string, pos: [number, number, number], loot: ILootDrop[], xp: number) => void;
+    onTurretShoot?: (projectile: TurretProjectile) => void;
 }
 
-const EnemyWithLabel: React.FC<EnemyWithLabelProps> = ({ id, preset, position, onDeath }) => {
+const EnemyWithLabel: React.FC<EnemyWithLabelProps> = ({ id, preset, position, onDeath, onTurretShoot }) => {
     const rigidBodyRef = useRef<RapierRigidBody>(null);
     const [health, setHealth] = useState(preset.maxHealth);
     const [isAlive, setIsAlive] = useState(true);
     const [isDying, setIsDying] = useState(false);
     const [deathScale, setDeathScale] = useState(1);
+    const [turretRotation, setTurretRotation] = useState(0);
 
     const player = useGameStore((state) => state.player);
     const isPaused = useGameStore((state) => state.isPaused);
     const damagePlayer = useGameStore((state) => state.damagePlayer);
 
     const lastAttackTime = useRef(0);
+    const lastTurretFireTime = useRef(0);
 
     // Log spawn
     useEffect(() => {
@@ -76,7 +98,7 @@ const EnemyWithLabel: React.FC<EnemyWithLabelProps> = ({ id, preset, position, o
     }, []);
 
     // AI behavior - with zone restriction
-    useFrame(() => {
+    useFrame((_, delta) => {
         if (!rigidBodyRef.current || !isAlive || isPaused) return;
         if (preset.behavior === 'training') return;
 
@@ -87,9 +109,41 @@ const EnemyWithLabel: React.FC<EnemyWithLabelProps> = ({ id, preset, position, o
         // Check if enemy fell off the world
         if (enemyPos.y < -5) {
             console.log(`[Enemy] ${preset.name} (${id}) fell off world at Y=${enemyPos.y}, respawning...`);
-            // Reset position instead of dying
             rigidBodyRef.current.setTranslation({ x: position[0], y: position[1] + 2, z: position[2] }, true);
             rigidBodyRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
+            return;
+        }
+
+        const distance = enemyVec.distanceTo(playerPos);
+
+        // Turret behavior - stationary, shoots when player in range
+        if (preset.behavior === 'turret') {
+            const detectionRadius = preset.detectionRadius || 12;
+            const fireRate = preset.fireRate || 0.5;
+            const fireInterval = 1000 / fireRate; // ms between shots
+
+            // Calculate direction to player and rotation angle
+            const direction = playerPos.clone().sub(enemyVec).normalize();
+            const targetAngle = Math.atan2(direction.x, direction.z);
+            setTurretRotation(targetAngle);
+
+            if (distance < detectionRadius && onTurretShoot) {
+                const now = Date.now();
+                if (now - lastTurretFireTime.current > fireInterval) {
+                    // Create projectile
+                    const projectile: TurretProjectile = {
+                        id: `turret-proj-${id}-${now}`,
+                        position: new Vector3(enemyPos.x, enemyPos.y + 0.5, enemyPos.z),
+                        direction: direction,
+                        damage: preset.damage,
+                        speed: 8, // Slow projectile speed
+                    };
+
+                    onTurretShoot(projectile);
+                    lastTurretFireTime.current = now;
+                }
+            }
+            // Turrets don't move
             return;
         }
 
@@ -100,50 +154,61 @@ const EnemyWithLabel: React.FC<EnemyWithLabelProps> = ({ id, preset, position, o
             if (zone === 2) return { min: 31, max: 53 };
             return { min: 0, max: 100 };
         };
-        const zoneBounds = getZoneBounds(position[2] < 15 && position[0] < 15 ? 0 : 1); // Determine zone from spawn
-
-        const distance = enemyVec.distanceTo(playerPos);
+        const zoneBounds = getZoneBounds(position[2] < 15 && position[0] < 15 ? 0 : 1);
 
         if (preset.behavior === 'hostile' && distance < 15 && distance > 1.5) {
             // Calculate direction to player
             const direction = playerPos.clone().sub(enemyVec).normalize();
 
-            // Check if moving would take us outside our zone
+            // Check if moving would take us outside our zone (use actual delta)
             const nextPos = new Vector3(
-                enemyPos.x + direction.x * preset.speed * 0.016,
+                enemyPos.x + direction.x * preset.speed * delta,
                 0,
-                enemyPos.z + direction.z * preset.speed * 0.016
+                enemyPos.z + direction.z * preset.speed * delta
             );
             const nextDistFromCenter = Math.sqrt(nextPos.x * nextPos.x + nextPos.z * nextPos.z);
 
             // Only move if staying in zone
             if (nextDistFromCenter >= zoneBounds.min && nextDistFromCenter <= zoneBounds.max) {
+                // Apply velocity directly - let physics handle the rest
                 rigidBodyRef.current.setLinvel({
                     x: direction.x * preset.speed,
                     y: rigidBodyRef.current.linvel().y,
                     z: direction.z * preset.speed,
                 }, true);
             } else {
-                // Stop at zone boundary
-                rigidBodyRef.current.setLinvel({
-                    x: 0,
-                    y: rigidBodyRef.current.linvel().y,
-                    z: 0,
-                }, true);
+                // At zone boundary - try to move along the boundary instead of stopping completely
+                const tangent = new Vector3(-enemyPos.z, 0, enemyPos.x).normalize();
+                const dot = direction.dot(tangent);
+                if (Math.abs(dot) > 0.1) {
+                    // Slide along the boundary
+                    rigidBodyRef.current.setLinvel({
+                        x: tangent.x * dot * preset.speed * 0.5,
+                        y: rigidBodyRef.current.linvel().y,
+                        z: tangent.z * dot * preset.speed * 0.5,
+                    }, true);
+                } else {
+                    // Smoothly decelerate instead of abrupt stop
+                    const vel = rigidBodyRef.current.linvel();
+                    rigidBodyRef.current.setLinvel({
+                        x: vel.x * 0.9,
+                        y: vel.y,
+                        z: vel.z * 0.9,
+                    }, true);
+                }
             }
         } else if (distance <= 1.5 && preset.behavior === 'hostile') {
             const now = Date.now();
             if (now - lastAttackTime.current > 1000) {
-                const pos = rigidBodyRef.current.translation();
-                console.log(`[Enemy] ${preset.name} (${id}) attacked player for ${preset.damage} damage`);
-                console.log(`[Enemy] ${preset.name} position: [${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)}] (Ground surface is at Y=0)`);
                 damagePlayer(preset.damage);
                 lastAttackTime.current = now;
             }
+            // Smooth stop when attacking
+            const vel = rigidBodyRef.current.linvel();
             rigidBodyRef.current.setLinvel({
-                x: 0,
-                y: rigidBodyRef.current.linvel().y,
-                z: 0,
+                x: vel.x * 0.8,
+                y: vel.y,
+                z: vel.z * 0.8,
             }, true);
         }
     });
@@ -188,36 +253,59 @@ const EnemyWithLabel: React.FC<EnemyWithLabelProps> = ({ id, preset, position, o
     // Death animation uses deathScale directly in render
     const healthPercent = (health / preset.maxHealth) * 100;
     const healthColor = healthPercent > 50 ? '#22c55e' : healthPercent > 25 ? '#eab308' : '#ef4444';
+    const isTurret = preset.type === 'turret';
 
     return (
         <RigidBody
             ref={rigidBodyRef}
-            type="dynamic"
+            type={isTurret ? "fixed" : "dynamic"}
             position={position}
             colliders={false}
-            mass={preset.type === 'big' ? 5 : 1}
-            linearDamping={2}
+            mass={preset.type === 'big' ? 5 : isTurret ? 10 : 1}
+            linearDamping={0.5}
             angularDamping={0.5}
             lockRotations
             userData={{ type: 'enemy', id, takeDamage }}
             ccd={true}
         >
-            {/* Explicit ball collider with correct size */}
-            <BallCollider args={[preset.size]} restitution={0.2} friction={1} />
+            {/* Collider - box for turrets, ball for others */}
+            {isTurret ? (
+                <CuboidCollider args={[preset.size, preset.size, preset.size]} restitution={0.1} friction={1} />
+            ) : (
+                <BallCollider args={[preset.size]} restitution={0.2} friction={1} />
+            )}
 
-            {/* Enemy body - with death animation scale */}
-            <mesh castShadow scale={[deathScale, deathScale, deathScale]}>
-                <sphereGeometry args={[preset.size, 32, 32]} />
-                <meshStandardMaterial
-                    color={isDying ? '#ff8888' : preset.color}
-                    emissive={isDying ? '#ff0000' : preset.color}
-                    emissiveIntensity={isDying ? 0.8 : 0.3}
-                    roughness={0.4}
-                    metalness={0.3}
-                    transparent={isDying}
-                    opacity={deathScale}
-                />
-            </mesh>
+            {/* Enemy body - wrapped in group for turret rotation */}
+            <group rotation={[0, isTurret ? turretRotation : 0, 0]}>
+                <mesh castShadow scale={[deathScale, deathScale, deathScale]}>
+                    {isTurret ? (
+                        <boxGeometry args={[preset.size * 2, preset.size * 2, preset.size * 2]} />
+                    ) : (
+                        <sphereGeometry args={[preset.size, 32, 32]} />
+                    )}
+                    <meshStandardMaterial
+                        color={isDying ? '#ff8888' : preset.color}
+                        emissive={isDying ? '#ff0000' : preset.color}
+                        emissiveIntensity={isDying ? 0.8 : isTurret ? 0.5 : 0.3}
+                        roughness={0.4}
+                        metalness={isTurret ? 0.6 : 0.3}
+                        transparent={isDying}
+                        opacity={deathScale}
+                    />
+                </mesh>
+
+                {/* Turret "eye" indicator - rotates with turret */}
+                {isTurret && (
+                    <mesh position={[0, 0, preset.size + 0.1]} castShadow>
+                        <sphereGeometry args={[0.15, 16, 16]} />
+                        <meshStandardMaterial
+                            color="#ff0000"
+                            emissive="#ff0000"
+                            emissiveIntensity={1}
+                        />
+                    </mesh>
+                )}
+            </group>
 
             {/* Floating name label */}
             <Text
@@ -247,13 +335,55 @@ const EnemyWithLabel: React.FC<EnemyWithLabelProps> = ({ id, preset, position, o
     );
 };
 
+
 export const WorldEnemies: React.FC = () => {
     const [enemies, setEnemies] = useState<EnemySpawn[]>(initialEnemies);
     const [lootDrops, setLootDrops] = useState<ILootItem[]>([]);
+    const [turretProjectiles, setTurretProjectiles] = useState<TurretProjectile[]>([]);
     const spawnCounter = useRef(0);
 
     const addXp = useGameStore((state) => state.addXp);
     const isPaused = useGameStore((state) => state.isPaused);
+    const player = useGameStore((state) => state.player);
+    const damagePlayer = useGameStore((state) => state.damagePlayer);
+
+    // Update turret projectiles
+    useFrame((_, delta) => {
+        if (isPaused) return;
+
+        setTurretProjectiles((prev) => {
+            const playerPos = new Vector3(...player.position);
+
+            return prev
+                .map((proj) => {
+                    // Move projectile
+                    const newPos = proj.position.clone().add(
+                        proj.direction.clone().multiplyScalar(proj.speed * delta)
+                    );
+
+                    // Check collision with player (radius ~0.5)
+                    const distToPlayer = newPos.distanceTo(playerPos);
+                    if (distToPlayer < 1) {
+                        damagePlayer(proj.damage);
+                        return null; // Remove projectile
+                    }
+
+                    // Check if projectile traveled too far (max 20 units)
+                    const distFromOrigin = proj.position.distanceTo(newPos);
+                    if (distFromOrigin > 20) {
+                        return null; // Remove projectile
+                    }
+
+                    return { ...proj, position: newPos };
+                })
+                .filter((proj): proj is TurretProjectile => proj !== null);
+        });
+    });
+
+    // Handler for turret shooting
+    const handleTurretShoot = useCallback((projectile: TurretProjectile) => {
+        setTurretProjectiles((prev) => [...prev, projectile]);
+    }, []);
 
     // Respawn enemies in Zone 1
     useEffect(() => {
@@ -348,9 +478,22 @@ export const WorldEnemies: React.FC = () => {
                             preset={preset}
                             position={enemy.position}
                             onDeath={handleEnemyDeath}
+                            onTurretShoot={preset.behavior === 'turret' ? handleTurretShoot : undefined}
                         />
                     );
                 })}
+
+            {/* Turret projectiles */}
+            {turretProjectiles.map((proj) => (
+                <mesh key={proj.id} position={[proj.position.x, proj.position.y, proj.position.z]}>
+                    <sphereGeometry args={[0.15, 8, 8]} />
+                    <meshStandardMaterial
+                        color="#ff00ff"
+                        emissive="#ff00ff"
+                        emissiveIntensity={1}
+                    />
+                </mesh>
+            ))}
 
             {lootDrops.map((loot) => (
                 <Loot key={loot.id} loot={loot} />
@@ -360,3 +503,4 @@ export const WorldEnemies: React.FC = () => {
 };
 
 export default WorldEnemies;
+
